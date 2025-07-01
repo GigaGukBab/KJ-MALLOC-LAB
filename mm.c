@@ -268,14 +268,40 @@ char *_next_fit(size_t asize)
 }
 char *_best_fit(size_t asize)
 {
-  return NULL;
+  char *min_p = NULL;
+  char *curr = NEXT_BLKP(heap_listp);
+  int min_size = 0;
+
+  while (GET_SIZE(HDRP(curr)) > 0)
+  {
+    if ((GET_ALLOC(HDRP(curr)) == 0) && (GET_SIZE(HDRP(curr)) >= asize))
+    { // 할당할 블록을 찾았다면
+      if (min_p == NULL || GET_SIZE(HDRP(curr)) < min_size)
+      {
+        // 첫 블록일 때는 현재 블록 사이즈를 최소값으로 설정
+        // 그 다음부터는 현재 보고 있는 블록 크기가 최소값보다 작을 때만 최소값 설정
+        min_p = curr;
+        min_size = GET_SIZE(HDRP(curr));
+      }
+    }
+    curr = NEXT_BLKP(curr);
+  }
+
+  if (min_p == NULL)
+  {
+    return NULL;
+  }
+  else
+  {
+    return min_p;
+  }
 }
 
 static void *find_fit(size_t asize)
 {
   // return _fisrt_fit(asize);
-  return _next_fit(asize);
-  // return _best_fit(asize);
+  // return _next_fit(asize);
+  return _best_fit(asize);
 }
 
 void _fisrt_fit_place(void *bp, size_t asize)
@@ -322,13 +348,27 @@ void _next_fit_place(void *bp, size_t asize)
 }
 void _best_fit_place(void *bp, size_t asize)
 {
+  size_t csize = GET_SIZE(HDRP(bp));
+
+  if (csize - asize < (2 * DSIZE))
+  {
+    PUT(HDRP(bp), PACK(csize, 1));
+    PUT(FTRP(bp), PACK(csize, 1));
+  }
+  else
+  {
+    PUT(HDRP(bp), PACK(asize, 1));
+    PUT(FTRP(bp), PACK(asize, 1));
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(csize - asize, 0));
+    PUT(FTRP(NEXT_BLKP(bp)), PACK(csize - asize, 0));
+  }
 }
 
 static void place(void *bp, size_t asize)
 {
   // _fisrt_fit_place(bp, asize);
-  _next_fit_place(bp, asize);
-  // _best_fit_place(bp, asize);
+  // _next_fit_place(bp, asize);
+  _best_fit_place(bp, asize);
 }
 
 // mm_malloc - Allocate a block by incrementing the brk pointer.
