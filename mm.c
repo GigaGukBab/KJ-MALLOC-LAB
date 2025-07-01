@@ -277,6 +277,8 @@ char *_best_fit(size_t asize)
     {
       if (min_p == NULL || GET_SIZE(HDRP(curr)) < GET_SIZE(HDRP(min_p)))
       {
+        // min_p가 NULL일 때 - 초기 설정
+        // 이후부터는 사이즈 비교 후 min_p 설정
         min_p = curr;
       }
     }
