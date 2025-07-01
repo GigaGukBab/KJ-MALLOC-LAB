@@ -7,6 +7,7 @@
  * Copyright (c) 2002, R. Bryant and D. O'Hallaron, All rights reserved.
  * May not be used, modified, or copied without permission.
  */
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -20,7 +21,7 @@
 #include "memlib.h"
 #include "fsecs.h"
 #include "config.h"
-#include <bits/getopt_core.h>
+#include <x86_64-linux-gnu/bits/getopt_core.h>
 
 /**********************
  * Constants and macros
