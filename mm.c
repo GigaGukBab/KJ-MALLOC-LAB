@@ -46,11 +46,20 @@ team_t team = {
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
 // >> helper functions prototypes
-static char *heap_listp; // NOTE: This always points to prologue block
 static void *coalesce(void *bp);
 static void *extend_heap(size_t words);
+char *_fisrt_fit(size_t asize);
+char *_next_fit(size_t asize);
+char *_best_fit(size_t asize);
 static void *find_fit(size_t asize);
+void _fisrt_fit_place(void *bp, size_t asize);
+void _next_fit_place(void *bp, size_t asize);
+void _best_fit_place(void *bp, size_t asize);
 static void place(void *bp, size_t asize);
+void printblock(char *bp);
+
+static char *heap_listp; // NOTE: This always points to prologue block
+static char *next_p;
 
 // >> Basic constants and macros
 #define WSIZE 4             /* Word and header/footer size (bytes) */
@@ -78,6 +87,18 @@ static void place(void *bp, size_t asize);
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
+void printblock(char *bp)
+{
+  size_t hsize = GET_SIZE(HDRP(bp));
+  size_t fsize = GET_SIZE(FTRP(bp));
+  int halloc = GET_ALLOC(HDRP(bp));
+  int falloc = GET_ALLOC(FTRP(bp));
+
+  printf("Block Info at %p:\n", bp);
+  printf("  Header: alloc = %d, size = %zu\n", halloc, hsize);
+  printf("  Footer: alloc = %d, size = %zu\n", falloc, fsize);
+}
+
 static void *coalesce(void *bp)
 {
   size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
@@ -88,14 +109,12 @@ static void *coalesce(void *bp)
   { // Case 1: No coalescing
     return bp;
   }
-
   else if (prev_alloc && !next_alloc)
   { // Case 2: Coalesce with next
     size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
     PUT(HDRP(bp), PACK(size, 0));
     PUT(FTRP(bp), PACK(size, 0));
   }
-
   else if (!prev_alloc && next_alloc)
   { // Case 3: Coalesce with prev
     size += GET_SIZE(HDRP(PREV_BLKP(bp)));
@@ -103,7 +122,6 @@ static void *coalesce(void *bp)
     PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
     bp = PREV_BLKP(bp);
   }
-
   else
   { // Case 4: Coalesce with both
     size += GET_SIZE(HDRP(PREV_BLKP(bp))) +
@@ -111,6 +129,11 @@ static void *coalesce(void *bp)
     PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
     PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
     bp = PREV_BLKP(bp);
+  }
+
+  if ((next_p > bp) && ((bp + size) > next_p))
+  {
+    next_p = bp;
   }
 
   return bp;
@@ -158,6 +181,7 @@ int mm_init(void)
   PUT(heap_listp + (2 * WSIZE), PACK(DSIZE, 1)); /* Prologue block footer*/
   PUT(heap_listp + (3 * WSIZE), PACK(0, 1));     /* Epilogue block header*/
   heap_listp += (2 * WSIZE);
+  next_p = NULL;
 
   /* Extend the empty heap with a free block of CHUNKSIZE bytes */
   if (extend_heap(CHUNKSIZE / WSIZE) == NULL)
@@ -167,9 +191,9 @@ int mm_init(void)
   return 0;
 }
 
-static void *find_fit(size_t asize)
+// >> Memory allocation methods
+char *_fisrt_fit(size_t asize)
 {
-  // NOTE: initially implement by first fit
   char *curr = NEXT_BLKP(heap_listp);
 
   while (GET_SIZE(HDRP(curr)) > 0)
@@ -186,8 +210,100 @@ static void *find_fit(size_t asize)
 
   return NULL;
 }
+char *_next_fit(size_t asize)
+{
+  if (next_p == NULL)
+  {
+    // allocating first time
+    char *curr = NEXT_BLKP(heap_listp);
+    while (GET_SIZE(HDRP(curr)) > 0)
+    {
+      if ((GET_ALLOC(HDRP(curr)) == 0) &&
+          (GET_SIZE(HDRP(curr)) >= asize))
+      {
+        return curr;
+      }
+      else
+      {
+        curr = NEXT_BLKP(curr);
+      }
+    }
 
-static void place(void *bp, size_t asize)
+    return NULL;
+  }
+  else
+  {
+    // not a first time
+    char *curr = next_p;
+    while (GET_SIZE(HDRP(curr)) > 0)
+    {
+      if ((GET_ALLOC(HDRP(curr)) == 0) &&
+          (GET_SIZE(HDRP(curr)) >= asize))
+      {
+        return curr;
+      }
+      else
+      {
+        curr = NEXT_BLKP(curr);
+      }
+    }
+
+    // 처음부터 다시 순회
+    curr = NEXT_BLKP(heap_listp);
+    while (GET_SIZE(HDRP(curr)) > 0)
+    {
+      if ((GET_ALLOC(HDRP(curr)) == 0) &&
+          (GET_SIZE(HDRP(curr)) >= asize))
+      {
+        return curr;
+      }
+      else
+      {
+        curr = NEXT_BLKP(curr);
+      }
+    }
+
+    // printf("After find_fit :");
+    // printblock(curr);
+    return NULL;
+  }
+}
+char *_best_fit(size_t asize)
+{
+  return NULL;
+}
+
+static void *find_fit(size_t asize)
+{
+  // return _fisrt_fit(asize);
+  return _next_fit(asize);
+  // return _best_fit(asize);
+}
+
+void _fisrt_fit_place(void *bp, size_t asize)
+{
+  size_t csize = GET_SIZE(HDRP(bp));
+
+  // printf("Before place :");
+  // printblock(bp);
+
+  if (csize - asize < (2 * DSIZE))
+  {
+    PUT(HDRP(bp), PACK(csize, 1));
+    PUT(FTRP(bp), PACK(csize, 1));
+  }
+  else
+  {
+    PUT(HDRP(bp), PACK(asize, 1));
+    PUT(FTRP(bp), PACK(asize, 1));
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(csize - asize, 0));
+    PUT(FTRP(NEXT_BLKP(bp)), PACK(csize - asize, 0));
+  }
+
+  // printf("After place :");
+  // printblock(bp);
+}
+void _next_fit_place(void *bp, size_t asize)
 {
   size_t csize = GET_SIZE(HDRP(bp));
 
@@ -203,6 +319,18 @@ static void place(void *bp, size_t asize)
     PUT(HDRP(NEXT_BLKP(bp)), PACK(csize - asize, 0));
     PUT(FTRP(NEXT_BLKP(bp)), PACK(csize - asize, 0));
   }
+
+  next_p = NEXT_BLKP(bp);
+}
+void _best_fit_place(void *bp, size_t asize)
+{
+}
+
+static void place(void *bp, size_t asize)
+{
+  // _fisrt_fit_place(bp, asize);
+  _next_fit_place(bp, asize);
+  // _best_fit_place(bp, asize);
 }
 
 /*
