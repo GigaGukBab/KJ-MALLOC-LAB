@@ -270,31 +270,20 @@ char *_best_fit(size_t asize)
 {
   char *min_p = NULL;
   char *curr = NEXT_BLKP(heap_listp);
-  int min_size = 0;
 
   while (GET_SIZE(HDRP(curr)) > 0)
   {
     if ((GET_ALLOC(HDRP(curr)) == 0) && (GET_SIZE(HDRP(curr)) >= asize))
-    { // 할당할 블록을 찾았다면
-      if (min_p == NULL || GET_SIZE(HDRP(curr)) < min_size)
+    {
+      if (min_p == NULL || GET_SIZE(HDRP(curr)) < GET_SIZE(HDRP(min_p)))
       {
-        // 첫 블록일 때는 현재 블록 사이즈를 최소값으로 설정
-        // 그 다음부터는 현재 보고 있는 블록 크기가 최소값보다 작을 때만 최소값 설정
         min_p = curr;
-        min_size = GET_SIZE(HDRP(curr));
       }
     }
     curr = NEXT_BLKP(curr);
   }
 
-  if (min_p == NULL)
-  {
-    return NULL;
-  }
-  else
-  {
-    return min_p;
-  }
+  return min_p;
 }
 
 static void *find_fit(size_t asize)
