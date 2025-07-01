@@ -165,9 +165,7 @@ static void *extend_heap(size_t words)
   return coalesce(bp);
 }
 
-/*
- * mm_init - initialize the malloc package.
- */
+// mm_init - initialize the malloc package.
 int mm_init(void)
 {
   /* Create the initial empty heap */
@@ -248,9 +246,9 @@ char *_next_fit(size_t asize)
       }
     }
 
-    // 처음부터 다시 순회
+    // 처음부터 다시 순회 (다시 돌아올때까지)
     curr = NEXT_BLKP(heap_listp);
-    while (GET_SIZE(HDRP(curr)) > 0)
+    while (curr != next_p)
     {
       if ((GET_ALLOC(HDRP(curr)) == 0) &&
           (GET_SIZE(HDRP(curr)) >= asize))
@@ -333,10 +331,8 @@ static void place(void *bp, size_t asize)
   // _best_fit_place(bp, asize);
 }
 
-/*
- * mm_malloc - Allocate a block by incrementing the brk pointer.
- *     Always allocate a block whose size is a multiple of the alignment.
- */
+// mm_malloc - Allocate a block by incrementing the brk pointer.
+// Always allocate a block whose size is a multiple of the alignment.
 void *mm_malloc(size_t size)
 {
   size_t asize;      /* Adjusted block size */
@@ -406,21 +402,80 @@ void mm_free(void *bp)
   coalesce(bp);
 }
 
-/*
- * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
- */
+// /*
+//  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
+//  */
+// void *mm_realloc(void *ptr, size_t size)
+// {
+//   void *oldptr = ptr;
+//   void *newptr;
+//   size_t copySize;
+
+//   newptr = mm_malloc(size);
+//   if (newptr == NULL)
+//     return NULL;
+//   copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
+//   if (size < copySize)
+//     copySize = size;
+//   memcpy(newptr, oldptr, copySize);
+//   mm_free(oldptr);
+//   return newptr;
+// }
+
+// 만약 메모리를 확장할 만큼 충분한 공간이 없으면, 원래의 블록은 변경되지 않으며 NULL을 반환합니다.
+// memblock이 NULL이면 realloc은 malloc(size)처럼 작동하여 새 블록을 할당합니다.
+// 만약 size가 0이면, memblock이 가리키는 블록이 해제되고, 반환값은 NULL입니다.
+// 이 경우 memblock은 해제된 블록을 여전히 가리키게 됩니다.
 void *mm_realloc(void *ptr, size_t size)
 {
   void *oldptr = ptr;
   void *newptr;
   size_t copySize;
 
+  if (ptr == NULL)
+  {
+    return mm_malloc(size);
+  }
+
+  if (size == 0)
+  {
+    mm_free(ptr);
+    return NULL;
+  }
+
   newptr = mm_malloc(size);
   if (newptr == NULL)
+  {
     return NULL;
-  copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
+  }
+
+  if (size <= DSIZE)
+  {
+    copySize = 2 * DSIZE;
+  }
+  else
+  {
+    copySize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
+  }
+
+  // 실제로 복사할 크기(copySize)가 요청한 size보다 클 경우, size로 잘라냅니다.
+  // 이유: 내부 블록 크기 계산에는 padding 및 alignment를 고려해서,
+  //       실제 payload보다 약간 더 크게 계산될 수 있습니다.
+  //       하지만 memcpy는 정확히 유효한 데이터만 복사해야 하므로,
+  //       copySize가 size를 초과할 경우 잘라주는 것이 안전합니다.
+  /*
+   예시:
+   사용자 요청: size = 13바이트
+   내부 계산: copySize = 8 * ((13 + 8 + 7) / 8) = 8 * 3 = 24
+    → 실제로는 13바이트만 의미 있는 데이터인데,
+       24바이트를 복사하면 불필요한 padding 영역까지 복사될 수 있음
+
+   따라서, copySize = 13 으로 조정하여 안전하게 복사
+  */
   if (size < copySize)
+  {
     copySize = size;
+  }
   memcpy(newptr, oldptr, copySize);
   mm_free(oldptr);
   return newptr;
