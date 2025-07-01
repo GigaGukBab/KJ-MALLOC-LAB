@@ -131,7 +131,7 @@ static void *coalesce(void *bp)
     bp = PREV_BLKP(bp);
   }
 
-  if ((next_p > bp) && ((bp + size) > next_p))
+  if ((next_p > (char *)bp) && (((char *)bp + size) > next_p))
   {
     next_p = bp;
   }
