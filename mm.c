@@ -291,8 +291,8 @@ char *_best_fit(size_t asize)
 static void *find_fit(size_t asize)
 {
   // return _fisrt_fit(asize);
-  // return _next_fit(asize);
-  return _best_fit(asize);
+  return _next_fit(asize);
+  // return _best_fit(asize);
 }
 
 void _fisrt_fit_place(void *bp, size_t asize)
@@ -358,8 +358,8 @@ void _best_fit_place(void *bp, size_t asize)
 static void place(void *bp, size_t asize)
 {
   // _fisrt_fit_place(bp, asize);
-  // _next_fit_place(bp, asize);
-  _best_fit_place(bp, asize);
+  _next_fit_place(bp, asize);
+  // _best_fit_place(bp, asize);
 }
 
 // mm_malloc - Allocate a block by incrementing the brk pointer.
@@ -459,10 +459,6 @@ void mm_free(void *bp)
 // 이 경우 memblock은 해제된 블록을 여전히 가리키게 됩니다.
 void *mm_realloc(void *ptr, size_t size)
 {
-  void *oldptr = ptr;
-  void *newptr;
-  size_t copySize;
-
   if (ptr == NULL)
   {
     return mm_malloc(size);
@@ -474,35 +470,17 @@ void *mm_realloc(void *ptr, size_t size)
     return NULL;
   }
 
+  void *oldptr = ptr;
+  void *newptr;
+  size_t copySize;
+
   newptr = mm_malloc(size);
   if (newptr == NULL)
   {
     return NULL;
   }
 
-  if (size <= DSIZE)
-  {
-    copySize = 2 * DSIZE;
-  }
-  else
-  {
-    copySize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
-  }
-
-  // 실제로 복사할 크기(copySize)가 요청한 size보다 클 경우, size로 잘라냅니다.
-  // 이유: 내부 블록 크기 계산에는 padding 및 alignment를 고려해서,
-  //       실제 payload보다 약간 더 크게 계산될 수 있습니다.
-  //       하지만 memcpy는 정확히 유효한 데이터만 복사해야 하므로,
-  //       copySize가 size를 초과할 경우 잘라주는 것이 안전합니다.
-  /*
-   예시:
-   사용자 요청: size = 13바이트
-   내부 계산: copySize = 8 * ((13 + 8 + 7) / 8) = 8 * 3 = 24
-    → 실제로는 13바이트만 의미 있는 데이터인데,
-       24바이트를 복사하면 불필요한 padding 영역까지 복사될 수 있음
-
-   따라서, copySize = 13 으로 조정하여 안전하게 복사
-  */
+  copySize = GET_SIZE(HDRP(oldptr)) - DSIZE;
   if (size < copySize)
   {
     copySize = size;
