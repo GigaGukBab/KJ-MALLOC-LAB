@@ -453,10 +453,6 @@ void mm_free(void *bp)
 //   return newptr;
 // }
 
-// 만약 메모리를 확장할 만큼 충분한 공간이 없으면, 원래의 블록은 변경되지 않으며 NULL을 반환합니다.
-// memblock이 NULL이면 realloc은 malloc(size)처럼 작동하여 새 블록을 할당합니다.
-// 만약 size가 0이면, memblock이 가리키는 블록이 해제되고, 반환값은 NULL입니다.
-// 이 경우 memblock은 해제된 블록을 여전히 가리키게 됩니다.
 void *mm_realloc(void *ptr, size_t size)
 {
   if (ptr == NULL)
